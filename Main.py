@@ -16,8 +16,6 @@ import warnings
 warnings.filterwarnings(action='ignore')
 
 
-
-
 # Function : apriori_kmeans
 def apriori_kmeans(user_input, movies_df_org, ratings_df_org):
     apriori_kmeans_result = []
@@ -40,8 +38,10 @@ def apriori_kmeans(user_input, movies_df_org, ratings_df_org):
     movies_df = movies_df_org.loc[Nan_title == False]
 
     # Merge dataset with (movieId & id)
-    movies_df = movies_df.astype({'id':'int64'})
-    df = pd.merge(ratings_df_org, movies_df[['id','title','budget','popularity','revenue','runtime','vote_average','vote_count']], left_on='movieId', right_on='id')
+    movies_df = movies_df.astype({'id': 'int64'})
+    df = pd.merge(ratings_df_org, movies_df[
+        ['id', 'title', 'budget', 'popularity', 'revenue', 'runtime', 'vote_average', 'vote_count']], left_on='movieId',
+                  right_on='id')
 
     # Drop useless data
     df.drop(['timestamp', 'id'], axis=1, inplace=True)
@@ -49,14 +49,14 @@ def apriori_kmeans(user_input, movies_df_org, ratings_df_org):
 
     # Final check modified dataset
     print("================Cleaned Dataset====================")
-    print(df.info(),'\n')
+    print(df.info(), '\n')
 
     # Results list
     apriori_result = []
     kmeans_result = []
 
     # Prepare Apriori
-    df = df.drop_duplicates(['userId','title'])
+    df = df.drop_duplicates(['userId', 'title'])
     df_pivot = df.pivot(index='userId', columns='title', values='rating').fillna(0)
     df_pivot = df_pivot.astype('int64')
     df_pivot = df_pivot.applymap(apriori_encoding)
@@ -102,20 +102,20 @@ def apriori_kmeans(user_input, movies_df_org, ratings_df_org):
                     num += 1
 
     # Check Apriori result
-    print('Apriori result:',apriori_result,"\n")
+    print('Apriori result:', apriori_result, "\n")
 
     # Prepare KMeans
     clusters = []
 
     # Get numeric type columns
-    numeric_df = movies_df_org[['budget','popularity','revenue','runtime','vote_average','vote_count','title']]
+    numeric_df = movies_df_org[['budget', 'popularity', 'revenue', 'runtime', 'vote_average', 'vote_count', 'title']]
 
     # Drop null values
     numeric_df.isnull().sum()
     numeric_df.dropna(inplace=True)
 
     # Cut off the movies' votes less than 25
-    df_numeric = numeric_df[numeric_df['vote_count']>25]
+    df_numeric = numeric_df[numeric_df['vote_count'] > 25]
 
     # Normalize data
     minmax_processed = preprocessing.MinMaxScaler().fit_transform(df_numeric.drop('title', axis=1))
@@ -164,20 +164,18 @@ def apriori_kmeans(user_input, movies_df_org, ratings_df_org):
             msg = "There is No cluster in movie [" + movie2 + ']'
             print(msg)
 
-    print('KMeans result:',kmeans_result,'\n')
+    print('KMeans result:', kmeans_result, '\n')
 
     # Select top 10
     apriori_kmeans_result = kmeans_result[:10]
-    print('apriori_kmeans_result:',apriori_kmeans_result,'\n')
+    print('apriori_kmeans_result:', apriori_kmeans_result, '\n')
 
     # Return apriori_kmeans result
     return apriori_kmeans_result
 
 
-
-
 # Function : content_based
-def content_based(user_input, movies_df):
+def content_based(user_input, movies_df, keywords_df):
     content_based_result = []
 
     # Preprocessing
@@ -205,13 +203,19 @@ def content_based(user_input, movies_df):
 
     movies_df['score'] = movies_df.apply(improved_rating, axis=1)
 
+    movies_df = movies_df.astype({'id': 'int64'})
+    movies_df = pd.merge(movies_df, keywords_df, on='id')
+
     #  Don't need an id value, so remove it and  just pull out the name
     movies_df['genres'] = movies_df['genres'].apply(literal_eval)
     movies_df['genres'] = movies_df['genres'].apply(lambda x: [d['name'] for d in x]).apply(lambda x: " ".join(x))
 
+    movies_df['keywords'] = movies_df['keywords'].apply(literal_eval)
+    movies_df['keywords'] = movies_df['keywords'].apply(lambda x: [d['name'] for d in x]).apply(lambda x: " ".join(x))
+
     # TF-IDF vectorization
     TFIDF_vector = TfidfVectorizer()
-    TFIDF_matrix = TFIDF_vector.fit_transform(movies_df['genres']).toarray()
+    TFIDF_matrix = TFIDF_vector.fit_transform(movies_df['genres'] + " " + movies_df['keywords']).toarray()
     TFIDF_matrix_feature = TFIDF_vector.get_feature_names()
 
     TFIDF_matrix = pd.DataFrame(TFIDF_matrix, columns=TFIDF_matrix_feature, index=movies_df.title)
@@ -240,80 +244,79 @@ def content_based(user_input, movies_df):
     return list(content_based_result['recommend_title'])
 
 
-
-
 # Function : collaborate
-def collaborate(user_input,movies_df,ratings_df):
+def collaborate(user_input, movies_df, ratings_df):
     collaborate_result = []
 
     # Function : rmse
     def rmse(R, P, Q, values):
         # Generating the predictive R matrix as the dot product of the two decomposed matrices P and Q.T
         predict_matrix = np.dot(P, Q.T)
-        
+
         # Calculate Rmse of R matrix and prediction matrix
         x_values = [Exist_val[0] for Exist_val in values]
         y_values = [Exist_val[1] for Exist_val in values]
         R_values = R[x_values, y_values]
-        
+
         Result_matrix = predict_matrix[x_values, y_values]
-        
+
         mse = mean_squared_error(R_values, Result_matrix)
         rmse = np.sqrt(mse)
-        
+
         return rmse
 
     # Function : matrix factorization
-    def matrix_factorization(R, K, step=150, Lambda = 0.01,learning_rate=0.01):
-        
+    def matrix_factorization(R, K, step=150, Lambda=0.01, learning_rate=0.01):
+
         user, item = R.shape
         # Size and create a matrix and fill it with random values
         np.random.seed(1)
-        P = np.random.normal(scale=1./K, size=(user, K))
-        Q = np.random.normal(scale=1./K, size=(item, K))
-    
-            
+        P = np.random.normal(scale=1. / K, size=(user, K))
+        Q = np.random.normal(scale=1. / K, size=(item, K))
+
         # Stores non-zero values ​​of rows and columns
-        Values = [ (i, j, R[i,j]) for i in range(user) for j in range(item) if R[i,j] > 0 ]
-        
+        Values = [(i, j, R[i, j]) for i in range(user) for j in range(item) if R[i, j] > 0]
+
         # Optimizing P and Q matrices with stochastic gradient descent(SGD)
         for step in range(step):
             for i, j, r in Values:
                 # Find the error value, which is the difference between the actual value and the predicted value
                 eij = r - np.dot(P[i, :], Q[j, :].T)
                 # Application of SGD update formula reflecting regularization
-                P[i,:] = P[i,:] + learning_rate*(eij * Q[j, :] - Lambda*P[i,:])
-                Q[j,:] = Q[j,:] + learning_rate*(eij * P[i, :] - Lambda*Q[j,:])
-            
+                P[i, :] = P[i, :] + learning_rate * (eij * Q[j, :] - Lambda * P[i, :])
+                Q[j, :] = Q[j, :] + learning_rate * (eij * P[i, :] - Lambda * Q[j, :])
+
             Rmse = rmse(R, P, Q, Values)
-            if (step % 5) == 0 :
-                print("step ",step," : ", " Rmse : ", Rmse)
-                
+            if (step % 5) == 0:
+                print("step ", step, " : ", " Rmse : ", Rmse)
+
         return P, Q
 
     # Function : recommend_movies
     def recommend_movies(svd_preds, user_id, movies, ratings, num=10):
-        user_row_number = user_id - 1 
-        
+        user_row_number = user_id - 1
+
         # Sort the movie ratings for that user in descending order
         sort_pred = svd_preds.iloc[user_row_number].sort_values(ascending=False)
-        
+
         # Extracting user-specific information from original rating data
         user_data = ratings[ratings.userId == user_id]
 
         # Merge User information and original movie data
-        history = user_data.merge(movies, on = 'movieId').sort_values(['rating'], ascending=False)
-    
+        history = user_data.merge(movies, on='movieId').sort_values(['rating'], ascending=False)
+
         # Exclude user history from original movie data
         Recommendation = movies[~movies['movieId'].isin(history['movieId'])]
-    
-        # Merge the user's rating in the prediction matrix with data excluding history 
-        Recommendation = Recommendation.merge( pd.DataFrame(sort_pred).reset_index(), on = 'movieId')
-        Recommendation = Recommendation.rename(columns = {user_row_number: 'Predictions'}).sort_values('Predictions', ascending = False).iloc[:num, :]
+
+        # Merge the user's rating in the prediction matrix with data excluding history
+        Recommendation = Recommendation.merge(pd.DataFrame(sort_pred).reset_index(), on='movieId')
+        Recommendation = Recommendation.rename(columns={user_row_number: 'Predictions'}).sort_values('Predictions',
+                                                                                                     ascending=False).iloc[
+                         :num, :]
 
         return Recommendation
 
-    #Remove unnecessary columns
+    # Remove unnecessary columns
     movies_df = movies_df.drop(labels=[
         'adult',
         'belongs_to_collection',
@@ -338,10 +341,10 @@ def collaborate(user_input,movies_df,ratings_df):
         'runtime'], axis=1)
     movies_df.dropna(inplace=True)
 
-    movies_df.rename(columns={'id':'movieId'},inplace=True)
-    movies_df = movies_df.astype({'movieId':'int64'})
+    movies_df.rename(columns={'id': 'movieId'}, inplace=True)
+    movies_df = movies_df.astype({'movieId': 'int64'})
 
-    #Movies that have not been rated are NaN values, so they are filled with 0.
+    # Movies that have not been rated are NaN values, so they are filled with 0.
     user_movie_ratings = ratings_df.pivot(
         index='userId',
         columns='movieId',
@@ -349,31 +352,31 @@ def collaborate(user_input,movies_df,ratings_df):
     ).fillna(0)
 
     # Optimal P, Q matrix
-    P, Q = matrix_factorization(user_movie_ratings.values, K=50, step=150, learning_rate=0.01, Lambda = 0.01)
+    P, Q = matrix_factorization(user_movie_ratings.values, K=50, step=150, learning_rate=0.01, Lambda=0.01)
 
     # Create prediction matrix
     pred_matrix = np.dot(P, Q.T)
 
     # Convert to dataframe for movie recommendation based on that matrix
-    svd_df = pd.DataFrame(pred_matrix, columns = user_movie_ratings.columns)
+    svd_df = pd.DataFrame(pred_matrix, columns=user_movie_ratings.columns)
 
     # Prediction
     predictions = recommend_movies(svd_df, user_input, movies_df, ratings_df, 10)
-    print("Recommendation result : \n",predictions)
-    collaborate_result=list(predictions['title'])
+    print("Recommendation result : \n", predictions)
+    collaborate_result = list(predictions['title'])
 
     return collaborate_result
 
 
-
-
 # Function : MainFunction - Whole Process
-def MainFunction(apriori_KMeans_input, content_based_input, collaborate_input, movies_df, ratings_df):
+def MainFunction(apriori_KMeans_input, content_based_input, collaborate_input, movies_df, ratings_df, keywords_df):
     final_result = []
     # Calculate recommendations
-    final_result.append('apriori_kmeans_result: '+str(apriori_kmeans(apriori_KMeans_input,movies_df,ratings_df))+'\n')
-    final_result.append('content_based_input: '+str(content_based(content_based_input,movies_df))+'\n')
-    final_result.append('collaborate_input: '+str(collaborate(collaborate_input,movies_df,ratings_df)))
+    final_result.append(
+        'apriori_kmeans_result: ' + str(apriori_kmeans(apriori_KMeans_input, movies_df, ratings_df)) + '\n')
+    final_result.append(
+        'content_based_result: ' + str(content_based(content_based_input, movies_df, keywords_df)) + '\n')
+    final_result.append('collaborate_result: ' + str(collaborate(collaborate_input, movies_df, ratings_df)))
 
     # Print results
     print("================================================================")
@@ -381,20 +384,19 @@ def MainFunction(apriori_KMeans_input, content_based_input, collaborate_input, m
     print("================================================================")
 
 
-
-
 # Main =================================================
 # Read datasets
 movies_df_org = pd.read_csv('data/movies_metadata.csv')
 ratings_df_org = pd.read_csv('data/ratings_small.csv')
-
+keywords_df = pd.read_csv('data/keywords.csv')
 # Data Exploration
 print("=====================================================")
-print(movies_df_org.info(),'\n')
-print(ratings_df_org.info(),'\n')
+print(movies_df_org.info(), '\n')
+print(ratings_df_org.info(), '\n')
+print(keywords_df.info(), '\n')
 
 # apriori_KMeans_input (5 movies)
-input1 = ['Men in Black II','48 Hrs.','Contempt','The Dark','2001: A Space Odyssey']
+input1 = ['Men in Black II', '48 Hrs.', 'Contempt', 'The Dark', '2001: A Space Odyssey']
 # content_based_input (1 movie)
 input2 = 'Men in Black II'
 # collaborate_input (User ID)
@@ -402,9 +404,10 @@ input3 = 15
 
 # Run!
 MainFunction(
-    apriori_KMeans_input=input1, 
-    content_based_input=input2, 
-    collaborate_input=input3, 
-    movies_df=movies_df_org, 
-    ratings_df=ratings_df_org
-    )
+    apriori_KMeans_input=input1,
+    content_based_input=input2,
+    collaborate_input=input3,
+    movies_df=movies_df_org,
+    ratings_df=ratings_df_org,
+    keywords_df=keywords_df
+)
