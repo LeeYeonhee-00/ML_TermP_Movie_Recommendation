@@ -11,7 +11,6 @@ the movies dataset - https://www.kaggle.com/datasets/rounakbanik/the-movies-data
 ## Reference
 https://www.youtube.com/watch?v=6TP51jvjLsE&t=2087s
 https://github.com/lsjsj92/recommender_system_with_Python
-https://ddongwon.tistory.com/m/115
 https://big-dream-world.tistory.com/69
 https://medium.com/recombee-blog/machine-learning-for-recommender-systems-part-1-algorithms-evaluation-and-cold-start-6f696683d0ed
 <img width="706" alt="image" src="https://user-images.githubusercontent.com/98442485/204258006-1832e8b1-7145-498c-84ba-3971d74e4371.png">
