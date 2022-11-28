@@ -1,5 +1,8 @@
 # ML_TermP_Movie_Recommendation
 
+## Used Dataset
+the movies dataset - https://www.kaggle.com/datasets/rounakbanik/the-movies-dataset<img width="347" alt="image" src="https://user-images.githubusercontent.com/98442485/204256861-0973a87d-4fe0-47cc-88c6-3038da041147.png">
+
 ## Function definition (and description)
 
 ## Architecture
