@@ -244,9 +244,9 @@ def content_based(user_input, movies_df, keywords_df):
     return list(content_based_result['recommend_title'])
 
 
-# Function : collaborate
-def collaborate(user_input, movies_df, ratings_df):
-    collaborate_result = []
+# Function : collaborative
+def collaborative(user_input, movies_df, ratings_df):
+    collaborative_result = []
 
     # Function : rmse
     def rmse(R, P, Q, values):
@@ -287,6 +287,8 @@ def collaborate(user_input, movies_df, ratings_df):
                 Q[j, :] = Q[j, :] + learning_rate * (eij * P[i, :] - Lambda * Q[j, :])
 
             Rmse = rmse(R, P, Q, Values)
+            
+            #This line just show you Rmse value for step by step
             if (step % 5) == 0:
                 print("step ", step, " : ", " Rmse : ", Rmse)
 
@@ -345,6 +347,8 @@ def collaborate(user_input, movies_df, ratings_df):
     movies_df = movies_df.astype({'movieId': 'int64'})
 
     # Movies that have not been rated are NaN values, so they are filled with 0.
+    # Switch to pivot table for visual efficiency and efficiency of data modification.
+
     user_movie_ratings = ratings_df.pivot(
         index='userId',
         columns='movieId',
@@ -363,20 +367,20 @@ def collaborate(user_input, movies_df, ratings_df):
     # Prediction
     predictions = recommend_movies(svd_df, user_input, movies_df, ratings_df, 10)
     print("Recommendation result : \n", predictions)
-    collaborate_result = list(predictions['title'])
+    collaborative_result = list(predictions['title'])
 
-    return collaborate_result
+    return collaborative_result
 
 
 # Function : MainFunction - Whole Process
-def MainFunction(apriori_KMeans_input, content_based_input, collaborate_input, movies_df, ratings_df, keywords_df):
+def MainFunction(apriori_KMeans_input, content_based_input, collaborative_input, movies_df, ratings_df, keywords_df):
     final_result = []
     # Calculate recommendations
     final_result.append(
         'apriori_kmeans_result: ' + str(apriori_kmeans(apriori_KMeans_input, movies_df, ratings_df)) + '\n')
     final_result.append(
         'content_based_result: ' + str(content_based(content_based_input, movies_df, keywords_df)) + '\n')
-    final_result.append('collaborate_result: ' + str(collaborate(collaborate_input, movies_df, ratings_df)))
+    final_result.append('collaborative_result: ' + str(collaborative(collaborative_input, movies_df, ratings_df)))
 
     # Print results
     print("================================================================")
@@ -399,14 +403,14 @@ print(keywords_df.info(), '\n')
 input1 = ['Men in Black II', '48 Hrs.', 'Contempt', 'The Dark', '2001: A Space Odyssey']
 # content_based_input (1 movie)
 input2 = 'Men in Black II'
-# collaborate_input (User ID)
+# collaborative_input (User ID)
 input3 = 15
 
 # Run!
 MainFunction(
     apriori_KMeans_input=input1,
     content_based_input=input2,
-    collaborate_input=input3,
+    collaborative_input=input3,
     movies_df=movies_df_org,
     ratings_df=ratings_df_org,
     keywords_df=keywords_df
